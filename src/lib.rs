@@ -8,7 +8,9 @@ use bevy::{
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 mod vhs;
+mod textures;
 use vhs::{VhsPostProcessPlugin, VhsPostProcessSettings};
+use textures::{setup_world_textures, WorldTextures};
 
 #[bevy_main]
 pub fn main() {
@@ -28,7 +30,7 @@ pub fn main() {
         .init_resource::<Settings>()
         .init_resource::<TouchState>()
         .init_resource::<CameraLook>()
-        .add_systems(Startup, (load_settings, setup_camera_and_light))
+        .add_systems(Startup, (load_settings, setup_camera_and_light, setup_world_textures))
         .add_systems(
             Update,
             (
@@ -438,13 +440,21 @@ fn spawn_box(
     materials: &mut Assets<StandardMaterial>,
     center: Vec3,
     size: Vec3,
-    color: Color,
+    tint: Color,
+    texture: Handle<Image>,
     collidable: bool,
 ) {
+    let material = materials.add(StandardMaterial {
+        base_color: tint,
+        base_color_texture: Some(texture),
+        perceptual_roughness: 0.92,
+        uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(size.max_element().max(1.0))),
+        ..default()
+    });
     let mut entity = commands.spawn((
         WorldEntity,
         Mesh3d(meshes.add(Cuboid::new(size.x, size.y, size.z))),
-        MeshMaterial3d(materials.add(color)),
+        MeshMaterial3d(material),
         Transform::from_translation(center),
     ));
     if collidable {
@@ -455,6 +465,7 @@ fn spawn_box(
 fn sync_world(
     mut commands: Commands,
     model: Res<UiModel>,
+    textures: Res<WorldTextures>,
     mut last_page: Local<Option<UiPage>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -462,53 +473,60 @@ fn sync_world(
 ) {
     if *last_page == Some(model.page) { return; }
     for entity in &world_entities { commands.entity(entity).despawn(); }
-    spawn_scene_for_page(&mut commands, model.page, &mut meshes, &mut materials);
+    spawn_scene_for_page(&mut commands, model.page, &textures, &mut meshes, &mut materials);
     *last_page = Some(model.page);
 }
 
 fn spawn_scene_for_page(
     commands: &mut Commands,
     page: UiPage,
+    textures: &WorldTextures,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
-    let wall = Color::srgb(0.68, 0.61, 0.39);
-    let carpet = Color::srgb(0.30, 0.25, 0.16);
-    let ceiling = Color::srgb(0.70, 0.69, 0.58);
-    spawn_box(commands, meshes, materials, Vec3::new(0.0, -0.12, -5.0), Vec3::new(12.0, 0.2, 24.0), carpet, false);
-    spawn_box(commands, meshes, materials, Vec3::new(-6.0, 1.5, -5.0), Vec3::new(0.2, 3.0, 24.0), wall, true);
-    spawn_box(commands, meshes, materials, Vec3::new(6.0, 1.5, -5.0), Vec3::new(0.2, 3.0, 24.0), wall, true);
-    spawn_box(commands, meshes, materials, Vec3::new(0.0, 3.05, -5.0), Vec3::new(12.0, 0.2, 24.0), ceiling, false);
+    let warm = Color::srgb(0.96, 0.91, 0.76);
+    let floor_tint = Color::srgb(0.88, 0.83, 0.72);
+
+    // Main room: every visible structural surface now uses a repeating material.
+    spawn_box(commands, meshes, materials, Vec3::new(0.0, -0.12, -5.0), Vec3::new(12.0, 0.2, 24.0), floor_tint, textures.carpet.clone(), false);
+    spawn_box(commands, meshes, materials, Vec3::new(-6.0, 1.5, -5.0), Vec3::new(0.2, 3.0, 24.0), warm, textures.wallpaper.clone(), true);
+    spawn_box(commands, meshes, materials, Vec3::new(6.0, 1.5, -5.0), Vec3::new(0.2, 3.0, 24.0), warm, textures.wallpaper.clone(), true);
+    spawn_box(commands, meshes, materials, Vec3::new(0.0, 3.05, -5.0), Vec3::new(12.0, 0.2, 24.0), Color::WHITE, textures.ceiling.clone(), false);
+
+    // Ceiling light housings use a pale, slightly emissive-looking textured surface.
     for z in [-2.0, -7.0, -12.0, -17.0] {
-        spawn_box(commands, meshes, materials, Vec3::new(0.0, 2.92, z), Vec3::new(1.5, 0.06, 0.7), Color::srgb(0.88, 0.84, 0.67), false);
+        spawn_box(commands, meshes, materials, Vec3::new(0.0, 2.92, z), Vec3::new(1.5, 0.06, 0.7), Color::srgb(1.0, 0.97, 0.82), textures.ceiling.clone(), false);
     }
 
     if page == UiPage::DebugWorld {
-        // Material samples and collision test objects.
+        // Material samples: wallpaper, aged plaster, carpet and dark wood.
         let samples = [
-            (Vec3::new(-3.6, 0.8, -3.0), Color::srgb(0.73, 0.64, 0.40)),
-            (Vec3::new(-2.2, 0.8, -3.0), Color::srgb(0.54, 0.48, 0.30)),
-            (Vec3::new(-0.8, 0.8, -3.0), Color::srgb(0.39, 0.34, 0.24)),
-            (Vec3::new(0.8, 0.8, -3.0), Color::srgb(0.18, 0.15, 0.12)),
+            (Vec3::new(-3.6, 0.8, -3.0), textures.wallpaper.clone(), Color::WHITE),
+            (Vec3::new(-2.2, 0.8, -3.0), textures.concrete.clone(), Color::WHITE),
+            (Vec3::new(-0.8, 0.8, -3.0), textures.carpet.clone(), Color::WHITE),
+            (Vec3::new(0.8, 0.8, -3.0), textures.wood.clone(), Color::WHITE),
         ];
-        for (pos, color) in samples {
-            spawn_box(commands, meshes, materials, pos, Vec3::splat(1.2), color, true);
+        for (pos, texture, tint) in samples {
+            spawn_box(commands, meshes, materials, pos, Vec3::splat(1.2), tint, texture, true);
         }
-        // Door test: frame, panel and handle.
-        spawn_box(commands, meshes, materials, Vec3::new(3.5, 1.35, -7.0), Vec3::new(1.8, 2.7, 0.18), wall, true);
-        spawn_box(commands, meshes, materials, Vec3::new(3.5, 1.25, -6.88), Vec3::new(1.25, 2.5, 0.10), Color::srgb(0.42, 0.34, 0.22), true);
-        spawn_box(commands, meshes, materials, Vec3::new(4.0, 1.2, -6.78), Vec3::new(0.08, 0.08, 0.08), Color::srgb(0.82, 0.72, 0.42), false);
-        // Localized glitch patches, deliberately sparse and irregular.
-        for (pos, size, color) in [
-            (Vec3::new(-5.86, 1.9, -5.2), Vec3::new(0.035, 0.32, 0.72), Color::srgb(0.20, 0.24, 0.20)),
-            (Vec3::new(-5.86, 1.45, -8.7), Vec3::new(0.035, 0.16, 0.42), Color::srgb(0.75, 0.69, 0.43)),
-            (Vec3::new(5.86, 2.2, -11.3), Vec3::new(0.035, 0.42, 0.58), Color::srgb(0.14, 0.18, 0.16)),
+
+        // Door frame, timber panel and metal handle.
+        spawn_box(commands, meshes, materials, Vec3::new(3.5, 1.35, -7.0), Vec3::new(1.8, 2.7, 0.18), warm, textures.wallpaper.clone(), true);
+        spawn_box(commands, meshes, materials, Vec3::new(3.5, 1.25, -6.88), Vec3::new(1.25, 2.5, 0.10), Color::WHITE, textures.wood.clone(), true);
+        spawn_box(commands, meshes, materials, Vec3::new(4.0, 1.2, -6.78), Vec3::new(0.08, 0.08, 0.08), Color::srgb(0.92, 0.86, 0.68), textures.metal.clone(), false);
+
+        // Sparse localized signal-corruption patches have their own material.
+        for (pos, size, tint) in [
+            (Vec3::new(-5.86, 1.9, -5.2), Vec3::new(0.035, 0.32, 0.72), Color::WHITE),
+            (Vec3::new(-5.86, 1.45, -8.7), Vec3::new(0.035, 0.16, 0.42), Color::srgb(1.0, 0.88, 0.62)),
+            (Vec3::new(5.86, 2.2, -11.3), Vec3::new(0.035, 0.42, 0.58), Color::WHITE),
         ] {
-            spawn_box(commands, meshes, materials, pos, size, color, false);
+            spawn_box(commands, meshes, materials, pos, size, tint, textures.glitch.clone(), false);
         }
-        // Low collision barriers.
-        spawn_box(commands, meshes, materials, Vec3::new(-2.0, 0.35, -9.0), Vec3::new(1.2, 0.7, 0.7), Color::srgb(0.36, 0.31, 0.22), true);
-        spawn_box(commands, meshes, materials, Vec3::new(0.0, 0.55, -10.5), Vec3::new(1.0, 1.1, 1.0), Color::srgb(0.45, 0.39, 0.26), true);
+
+        // Low obstacles are textured concrete and worn carpet, not flat-color blocks.
+        spawn_box(commands, meshes, materials, Vec3::new(-2.0, 0.35, -9.0), Vec3::new(1.2, 0.7, 0.7), Color::WHITE, textures.concrete.clone(), true);
+        spawn_box(commands, meshes, materials, Vec3::new(0.0, 0.55, -10.5), Vec3::new(1.0, 1.1, 1.0), Color::WHITE, textures.carpet.clone(), true);
     }
 }
 
