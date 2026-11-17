@@ -211,7 +211,7 @@ fn button_bundle(label: String, action: UiAction) -> impl Bundle {
             width: px(360),
             min_height: px(54),
             margin: UiRect::vertical(px(5)),
-            padding: UiRect::axes(px(16), px(10)),
+            padding: UiRect::all(px(12)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             border: UiRect::all(px(1)),
