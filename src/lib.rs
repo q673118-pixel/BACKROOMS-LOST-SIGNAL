@@ -7,6 +7,8 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
+mod vhs;
+use vhs::{VhsPostProcessPlugin, VhsPostProcessSettings};
 
 #[bevy_main]
 pub fn main() {
@@ -20,6 +22,7 @@ pub fn main() {
             }),
             ..default()
         }))
+        .add_plugins(VhsPostProcessPlugin)
         .init_resource::<UiModel>()
         .init_resource::<UiCommand>()
         .init_resource::<Settings>()
@@ -33,7 +36,7 @@ pub fn main() {
                 rebuild_ui,
                 sync_world,
                 mobile_controls,
-                update_vhs_tint,
+                sync_vhs_post_process,
                 sync_graphics_settings,
                 sync_joystick_style,
             )
@@ -181,6 +184,7 @@ fn load_settings(mut settings: ResMut<Settings>) {
 fn setup_camera_and_light(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
+        VhsPostProcessSettings::default(),
         Transform::from_xyz(0.0, 1.65, 5.0).looking_at(Vec3::new(0.0, 1.5, 0.0), Vec3::Y),
         #[cfg(target_os = "android")]
         Msaa::Off,
@@ -573,14 +577,20 @@ fn mobile_controls(
     if !blocked { transform.translation = desired; }
 }
 
-fn update_vhs_tint(
+fn sync_vhs_post_process(
     settings: Res<Settings>,
-    mut roots: Query<&mut BackgroundColor, With<UiRoot>>,
+    time: Res<Time>,
+    mut effects: Query<&mut VhsPostProcessSettings>,
 ) {
-    if !settings.is_changed() { return; }
-    for mut color in &mut roots {
-        let base = match settings.vhs_enabled { true => 0.78 + settings.vhs_intensity * 0.08, false => 0.78 };
-        *color = BackgroundColor(Color::srgba(0.035, 0.035, 0.025, base));
+    for mut effect in &mut effects {
+        effect.intensity = settings.vhs_intensity;
+        effect.scanlines = settings.scanlines;
+        effect.noise = settings.noise;
+        effect.chromatic = settings.chromatic;
+        effect.distortion = settings.distortion;
+        effect.flicker = settings.flicker;
+        effect.time = time.elapsed_secs();
+        effect.enabled = if settings.vhs_enabled { 1.0 } else { 0.0 };
     }
 }
 
