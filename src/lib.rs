@@ -516,19 +516,23 @@ fn mobile_controls(
     let width = window.width();
     let mut look_delta = Vec2::ZERO;
 
-    for touch in touches.iter() {
+    for touch in touches.iter_just_pressed() {
         let pos = touch.position();
-        if touch.just_pressed() && pos.x < width * 0.48 && touch_state.left_id.is_none() {
+        if pos.x < width * 0.48 && touch_state.left_id.is_none() {
             touch_state.left_id = Some(touch.id());
             touch_state.left_origin = pos;
         }
+    }
+    for touch in touches.iter_just_released() {
         if touch_state.left_id == Some(touch.id()) {
-            if touch.just_released() {
-                touch_state.left_id = None;
-                touch_state.axis = Vec2::ZERO;
-            } else {
-                touch_state.axis = ((pos - touch_state.left_origin) / 90.0).clamp_length_max(1.0);
-            }
+            touch_state.left_id = None;
+            touch_state.axis = Vec2::ZERO;
+        }
+    }
+    for touch in touches.iter() {
+        let pos = touch.position();
+        if touch_state.left_id == Some(touch.id()) {
+            touch_state.axis = ((pos - touch_state.left_origin) / 90.0).clamp_length_max(1.0);
         } else if pos.x >= width * 0.48 {
             look_delta += touch.delta();
         }
