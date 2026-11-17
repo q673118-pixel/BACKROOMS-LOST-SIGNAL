@@ -354,7 +354,6 @@ fn apply_ui_command(
         UiAction::Adjust(key, amount) => match key {
             SettingKey::Sensitivity => settings.sensitivity = (settings.sensitivity + amount).clamp(0.2, 3.0),
             SettingKey::JoystickSize => settings.joystick_size = (settings.joystick_size + amount).clamp(0.7, 1.6),
-            SettingKey::JoystickOpacity => settings.joystick_opacity = (settings.joystick_opacity + amount).clamp(0.1, 1.0),
             SettingKey::VhsIntensity => settings.vhs_intensity = (settings.vhs_intensity + amount).clamp(0.0, 1.0),
             SettingKey::Scanlines => settings.scanlines = (settings.scanlines + amount).clamp(0.0, 1.0),
             SettingKey::Noise => settings.noise = (settings.noise + amount).clamp(0.0, 1.0),
@@ -417,11 +416,10 @@ fn sync_world(
     mut last_page: Local<Option<UiPage>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    world_entities: Query<Entity, With<WorldEntity>>,
 ) {
     if *last_page == Some(model.page) { return; }
-    for entity in commands.get_entity(Entity::PLACEHOLDER).into_iter() { let _ = entity; }
-    // Remove only world geometry; the camera and menu remain independent.
-    // The query is handled through a deferred marker cleanup system below.
+    for entity in &world_entities { commands.entity(entity).despawn(); }
     spawn_scene_for_page(&mut commands, model.page, &mut meshes, &mut materials);
     *last_page = Some(model.page);
 }
