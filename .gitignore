@@ -1,0 +1,9 @@
+/target
+/android/.gradle
+/android/local.properties
+/android/app/build
+/android/app/src/main/jniLibs
+*.apk
+*.aab
+.idea/
+.vscode/
