@@ -210,7 +210,7 @@ fn button_bundle(label: String, action: UiAction) -> impl Bundle {
         Node {
             width: px(360),
             min_height: px(54),
-            margin: UiRect::vertical(px(5)),
+            margin: UiRect::all(px(5)),
             padding: UiRect::all(px(12)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
@@ -292,11 +292,16 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
                         p.spawn(button_bundle("Интенсивность −".into(), UiAction::Adjust(SettingKey::VhsIntensity, -0.05)));
                         p.spawn(button_bundle("Интенсивность +".into(), UiAction::Adjust(SettingKey::VhsIntensity, 0.05)));
                         p.spawn(label_bundle(format!("Scanlines: {:.2}  Noise: {:.2}", settings.scanlines, settings.noise), 15.0));
-                        p.spawn(button_bundle("Scanlines − / +".into(), UiAction::Adjust(SettingKey::Scanlines, 0.05)));
-                        p.spawn(button_bundle("Noise − / +".into(), UiAction::Adjust(SettingKey::Noise, 0.05)));
+                        p.spawn(button_bundle("Scanlines −".into(), UiAction::Adjust(SettingKey::Scanlines, -0.05)));
+                        p.spawn(button_bundle("Scanlines +".into(), UiAction::Adjust(SettingKey::Scanlines, 0.05)));
+                        p.spawn(button_bundle("Noise −".into(), UiAction::Adjust(SettingKey::Noise, -0.05)));
+                        p.spawn(button_bundle("Noise +".into(), UiAction::Adjust(SettingKey::Noise, 0.05)));
                         p.spawn(label_bundle(format!("Chromatic: {:.2}  Distortion: {:.2}", settings.chromatic, settings.distortion), 15.0));
+                        p.spawn(button_bundle("Chromatic −".into(), UiAction::Adjust(SettingKey::Chromatic, -0.05)));
                         p.spawn(button_bundle("Chromatic +".into(), UiAction::Adjust(SettingKey::Chromatic, 0.05)));
+                        p.spawn(button_bundle("Distortion −".into(), UiAction::Adjust(SettingKey::Distortion, -0.05)));
                         p.spawn(button_bundle("Distortion +".into(), UiAction::Adjust(SettingKey::Distortion, 0.05)));
+                        p.spawn(button_bundle("Flicker −".into(), UiAction::Adjust(SettingKey::Flicker, -0.02)));
                         p.spawn(button_bundle("Flicker +".into(), UiAction::Adjust(SettingKey::Flicker, 0.02)));
                     }
                     SettingsTab::Graphics => {
@@ -312,10 +317,13 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
                         p.spawn(button_bundle("Общая громкость −".into(), UiAction::Adjust(SettingKey::MasterVolume, -0.1)));
                         p.spawn(button_bundle("Общая громкость +".into(), UiAction::Adjust(SettingKey::MasterVolume, 0.1)));
                         p.spawn(label_bundle(format!("Окружение: {:.1}  Эффекты: {:.1}", settings.environment_volume, settings.effects_volume), 15.0));
-                        p.spawn(button_bundle("Громкость окружения +".into(), UiAction::Adjust(SettingKey::EnvironmentVolume, 0.1)));
-                        p.spawn(button_bundle("Громкость эффектов +".into(), UiAction::Adjust(SettingKey::EffectsVolume, 0.1)));
+                        p.spawn(button_bundle("Окружение −".into(), UiAction::Adjust(SettingKey::EnvironmentVolume, -0.1)));
+                        p.spawn(button_bundle("Окружение +".into(), UiAction::Adjust(SettingKey::EnvironmentVolume, 0.1)));
+                        p.spawn(button_bundle("Эффекты −".into(), UiAction::Adjust(SettingKey::EffectsVolume, -0.1)));
+                        p.spawn(button_bundle("Эффекты +".into(), UiAction::Adjust(SettingKey::EffectsVolume, 0.1)));
                         p.spawn(label_bundle(format!("Музыка: {:.1}", settings.music_volume), 15.0));
-                        p.spawn(button_bundle("Музыка − / +".into(), UiAction::Adjust(SettingKey::MusicVolume, 0.1)));
+                        p.spawn(button_bundle("Музыка −".into(), UiAction::Adjust(SettingKey::MusicVolume, -0.1)));
+                        p.spawn(button_bundle("Музыка +".into(), UiAction::Adjust(SettingKey::MusicVolume, 0.1)));
                     }
                     SettingsTab::Interface => {
                         p.spawn(label_bundle(format!("Масштаб интерфейса: {:.1}", settings.ui_scale), 16.0));
