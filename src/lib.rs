@@ -468,7 +468,14 @@ fn sync_world(
 ) {
     if *last_page == Some(model.page) { return; }
     for entity in &world_entities { commands.entity(entity).despawn(); }
-    spawn_scene_for_page(&mut commands, model.page, &textures, &mut meshes, &mut materials);
+
+    // Diagnostic isolation: keep DebugWorld UI and touch controls active,
+    // but skip all 3D scene spawning. This checks whether scene creation/rendering
+    // is the trigger for the Android process exit.
+    if model.page == UiPage::Playing {
+        spawn_scene_for_page(&mut commands, model.page, &textures, &mut meshes, &mut materials);
+    }
+
     *last_page = Some(model.page);
 }
 
