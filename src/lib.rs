@@ -34,6 +34,8 @@ pub fn main() {
                 sync_world,
                 mobile_controls,
                 update_vhs_tint,
+                sync_graphics_settings,
+                sync_joystick_style,
             )
                 .chain(),
         )
@@ -157,6 +159,8 @@ struct Collider {
 }
 #[derive(Component)]
 struct VhsTint;
+#[derive(Component)]
+struct JoystickBase;
 
 #[derive(Resource, Default)]
 struct TouchState {
@@ -244,7 +248,10 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
             padding: UiRect::all(px(18)),
             ..default()
         },
-        BackgroundColor(Color::srgba(0.035, 0.035, 0.025, 0.78)),
+        BackgroundColor(Color::srgba(
+            0.035, 0.035, 0.025,
+            match model.page { UiPage::Menu | UiPage::Settings => 0.78, UiPage::DebugWorld => 0.14, UiPage::Playing => 0.05 }
+        )),
     )).id();
 
     commands.entity(root).with_children(|p| {
@@ -272,7 +279,11 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
                         p.spawn(button_bundle("Чувствительность −".into(), UiAction::Adjust(SettingKey::Sensitivity, -0.1)));
                         p.spawn(button_bundle("Чувствительность +".into(), UiAction::Adjust(SettingKey::Sensitivity, 0.1)));
                         p.spawn(label_bundle(format!("Размер джойстика: {:.1}", settings.joystick_size), 16.0));
-                        p.spawn(button_bundle("Размер джойстика − / +".into(), UiAction::Adjust(SettingKey::JoystickSize, 0.1)));
+                        p.spawn(button_bundle("Размер джойстика −".into(), UiAction::Adjust(SettingKey::JoystickSize, -0.1)));
+                        p.spawn(button_bundle("Размер джойстика +".into(), UiAction::Adjust(SettingKey::JoystickSize, 0.1)));
+                        p.spawn(label_bundle(format!("Прозрачность джойстика: {:.1}", settings.joystick_opacity), 15.0));
+                        p.spawn(button_bundle("Прозрачность −".into(), UiAction::Adjust(SettingKey::JoystickOpacity, -0.1)));
+                        p.spawn(button_bundle("Прозрачность +".into(), UiAction::Adjust(SettingKey::JoystickOpacity, 0.1)));
                         p.spawn(button_bundle(format!("Инверсия Y: {}", if settings.invert_y { "ВКЛ" } else { "ВЫКЛ" }), UiAction::Toggle(SettingKey::InvertY)));
                     }
                     SettingsTab::Vhs => {
@@ -281,8 +292,8 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
                         p.spawn(button_bundle("Интенсивность −".into(), UiAction::Adjust(SettingKey::VhsIntensity, -0.05)));
                         p.spawn(button_bundle("Интенсивность +".into(), UiAction::Adjust(SettingKey::VhsIntensity, 0.05)));
                         p.spawn(label_bundle(format!("Scanlines: {:.2}  Noise: {:.2}", settings.scanlines, settings.noise), 15.0));
-                        p.spawn(button_bundle("Scanlines +".into(), UiAction::Adjust(SettingKey::Scanlines, 0.05)));
-                        p.spawn(button_bundle("Noise +".into(), UiAction::Adjust(SettingKey::Noise, 0.05)));
+                        p.spawn(button_bundle("Scanlines − / +".into(), UiAction::Adjust(SettingKey::Scanlines, 0.05)));
+                        p.spawn(button_bundle("Noise − / +".into(), UiAction::Adjust(SettingKey::Noise, 0.05)));
                         p.spawn(label_bundle(format!("Chromatic: {:.2}  Distortion: {:.2}", settings.chromatic, settings.distortion), 15.0));
                         p.spawn(button_bundle("Chromatic +".into(), UiAction::Adjust(SettingKey::Chromatic, 0.05)));
                         p.spawn(button_bundle("Distortion +".into(), UiAction::Adjust(SettingKey::Distortion, 0.05)));
@@ -320,7 +331,26 @@ fn spawn_ui(commands: &mut Commands, model: &UiModel, settings: &Settings) {
                 p.spawn(label_bundle("DEBUG WORLD".into(), 40.0));
                 p.spawn(label_bundle("Отдельная тестовая сцена".into(), 17.0));
                 p.spawn(label_bundle("TEXTURES  •  COLLISIONS  •  GLITCH PATCHES".into(), 13.0));
-                p.spawn(label_bundle("Двигайся левым джойстиком, осматривайся свайпом справа.".into(), 14.0));
+                p.spawn(label_bundle("Двигайся слева, осматривайся свайпом справа.".into(), 14.0));
+                p.spawn((
+                    JoystickBase,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: px(38), bottom: px(30),
+                        width: px(118), height: px(118),
+                        border: UiRect::all(px(2)),
+                        border_radius: BorderRadius::MAX,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BorderColor::all(Color::srgba(0.78, 0.72, 0.52, 0.7)),
+                    BackgroundColor(Color::srgba(0.42, 0.38, 0.27, 0.25)),
+                    children![(
+                        Node { width: px(44), height: px(44), border_radius: BorderRadius::MAX, ..default() },
+                        BackgroundColor(Color::srgba(0.82, 0.76, 0.58, 0.55)),
+                    )],
+                ));
                 p.spawn(button_bundle("ВЕРНУТЬСЯ В МЕНЮ".into(), UiAction::Page(UiPage::Menu)));
             }
             UiPage::Playing => {
@@ -537,7 +567,36 @@ fn update_vhs_tint(
 ) {
     if !settings.is_changed() { return; }
     for mut color in &mut roots {
-        let alpha = if settings.vhs_enabled { 0.78 + settings.vhs_intensity * 0.08 } else { 0.78 };
-        *color = BackgroundColor(Color::srgba(0.035, 0.035, 0.025, alpha));
+        let base = match settings.vhs_enabled { true => 0.78 + settings.vhs_intensity * 0.08, false => 0.78 };
+        *color = BackgroundColor(Color::srgba(0.035, 0.035, 0.025, base));
+    }
+}
+
+fn sync_graphics_settings(
+    settings: Res<Settings>,
+    mut projections: Query<&mut Projection, With<Camera3d>>,
+    mut lights: Query<&mut DirectionalLight>,
+) {
+    if !settings.is_changed() { return; }
+    for mut projection in &mut projections {
+        if let Projection::Perspective(perspective) = &mut *projection {
+            perspective.far = settings.render_distance;
+        }
+    }
+    for mut light in &mut lights {
+        light.shadows_enabled = settings.shadows;
+    }
+}
+
+fn sync_joystick_style(
+    settings: Res<Settings>,
+    mut bases: Query<(&mut Node, &mut BackgroundColor), With<JoystickBase>>,
+) {
+    if !settings.is_changed() { return; }
+    for (mut node, mut color) in &mut bases {
+        let diameter = 118.0 * settings.joystick_size;
+        node.width = px(diameter);
+        node.height = px(diameter);
+        *color = BackgroundColor(Color::srgba(0.42, 0.38, 0.27, settings.joystick_opacity * 0.38));
     }
 }
