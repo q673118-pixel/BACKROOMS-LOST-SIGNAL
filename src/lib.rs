@@ -188,13 +188,13 @@ fn setup_camera_and_light(mut commands: Commands) {
     commands.spawn((
         DirectionalLight {
             illuminance: 5_000.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         },
         Transform::from_xyz(-3.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
-        PointLight { intensity: 500_000.0, range: 18.0, shadows_enabled: false, ..default() },
+        PointLight { intensity: 500_000.0, range: 18.0, shadow_maps_enabled: false, ..default() },
         Transform::from_xyz(0.0, 3.0, -3.0),
     ));
 }
@@ -596,7 +596,7 @@ fn sync_graphics_settings(
         }
     }
     for mut light in &mut lights {
-        light.shadows_enabled = settings.shadows;
+        light.shadow_maps_enabled = settings.shadows;
     }
 }
 
