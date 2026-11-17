@@ -7,9 +7,7 @@ use bevy::{
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
-mod vhs;
 mod textures;
-use vhs::{VhsPostProcessPlugin, VhsPostProcessSettings};
 use textures::{setup_world_textures, WorldTextures};
 
 #[bevy_main]
@@ -24,7 +22,6 @@ pub fn main() {
             }),
             ..default()
         }))
-        .add_plugins(VhsPostProcessPlugin)
         .init_resource::<UiModel>()
         .init_resource::<UiCommand>()
         .init_resource::<Settings>()
@@ -38,7 +35,6 @@ pub fn main() {
                 rebuild_ui,
                 sync_world,
                 mobile_controls,
-                sync_vhs_post_process,
                 sync_graphics_settings,
                 sync_joystick_style,
             )
@@ -186,7 +182,6 @@ fn load_settings(mut settings: ResMut<Settings>) {
 fn setup_camera_and_light(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
-        VhsPostProcessSettings::default(),
         Transform::from_xyz(0.0, 1.65, 5.0).looking_at(Vec3::new(0.0, 1.5, 0.0), Vec3::Y),
         #[cfg(target_os = "android")]
         Msaa::Off,
@@ -593,23 +588,6 @@ fn mobile_controls(
         a_min.z < b_max.z && a_max.z > b_min.z
     });
     if !blocked { transform.translation = desired; }
-}
-
-fn sync_vhs_post_process(
-    settings: Res<Settings>,
-    time: Res<Time>,
-    mut effects: Query<&mut VhsPostProcessSettings>,
-) {
-    for mut effect in &mut effects {
-        effect.intensity = settings.vhs_intensity;
-        effect.scanlines = settings.scanlines;
-        effect.noise = settings.noise;
-        effect.chromatic = settings.chromatic;
-        effect.distortion = settings.distortion;
-        effect.flicker = settings.flicker;
-        effect.time = time.elapsed_secs();
-        effect.enabled = if settings.vhs_enabled { 1.0 } else { 0.0 };
-    }
 }
 
 fn sync_graphics_settings(
