@@ -1,0 +1,26 @@
+[package]
+name = "backrooms-lost-signal"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "backrooms_lost_signal"
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+bevy = { version = "0.20", features = ["android-game-activity"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
